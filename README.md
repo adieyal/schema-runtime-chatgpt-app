@@ -4,9 +4,11 @@ A ChatGPT Apps SDK / MCP version of Schema Runtime. The deterministic validator 
 
 ## Deploy
 
-This repo contains a Render Blueprint in `render.yaml`. Use Render's Deploy from repository flow, then connect ChatGPT to the deployed HTTPS URL with `/mcp` appended.
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Fadieyal%2Fschema-runtime-chatgpt-app)
 
-Example MCP endpoint after deployment:
+Render reads `render.yaml`, builds the Node service, and gives you a public HTTPS URL. Append `/mcp` to that URL when adding the app to ChatGPT.
+
+Example:
 
 `https://YOUR-SERVICE.onrender.com/mcp`
 
@@ -14,6 +16,8 @@ Example MCP endpoint after deployment:
 
 - `open_schema_runtime` opens the default dashboard.
 - `render_schema` renders a schema authored by ChatGPT.
+
+Both tools are read-only from ChatGPT's perspective; the rendered UI is generated inside the conversation.
 
 ## Local commands
 
