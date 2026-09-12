@@ -10,7 +10,7 @@ import { z } from "zod";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
-const WIDGET_URI = "ui://schema-runtime/schema-runtime-v1.html";
+const WIDGET_URI = "ui://schema-runtime/schema-runtime-v2.html";
 const widgetBase64 = fs.readdirSync(path.join(ROOT, "assets"))
   .filter((name) => /^schema-runtime\.b64\.\d+$/.test(name))
   .sort((a, b) => Number(a.split(".").at(-1)) - Number(b.split(".").at(-1)))
