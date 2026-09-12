@@ -11,7 +11,10 @@ import { z } from "zod";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const WIDGET_URI = "ui://schema-runtime/schema-runtime-v1.html";
-const widgetHtml = fs.readFileSync(path.join(ROOT, "assets", "schema-runtime.html"), "utf8");
+const widgetBase64 = [0, 1, 2, 3, 4]
+  .map((i) => fs.readFileSync(path.join(ROOT, "assets", `schema-runtime.b64.${i}`), "utf8"))
+  .join("");
+const widgetHtml = Buffer.from(widgetBase64, "base64").toString("utf8");
 
 const CONTRACT = `
 Schema Runtime contract. Produce a single schema object.
