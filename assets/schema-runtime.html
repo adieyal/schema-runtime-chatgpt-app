@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Schema Runtime — ChatGPT App</title>
+<style>
+  :root{
+    --paper:#EEF0F3; --surface:#FFFFFF; --ink:#16181D; --muted:#667085;
+    --line:#D3D8DF; --signal:#2350C8; --derived:#0F766E; --bad:#B3261E; --flash:#8A5A00;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.45;padding-bottom:env(safe-area-inset-bottom)}
+  header{padding:14px 16px 10px;border-bottom:1px solid var(--line);background:var(--surface);position:sticky;top:0;z-index:10}
+  header h1{font-size:15px;margin:0;font-weight:600;letter-spacing:-0.01em}
+  header p{margin:2px 0 0;font-size:12.5px;color:var(--muted)}
+  nav{display:flex;gap:2px;margin-top:10px;flex-wrap:wrap}
+  nav button{font:inherit;font-size:13px;padding:5px 11px;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:2px;cursor:pointer}
+  nav button[aria-selected="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+  nav button:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+  main{padding:14px 16px 40px;max-width:920px;margin:0 auto}
+  .pane[hidden]{display:none}
+
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:3px;padding:12px;margin-bottom:12px}
+  .panel > .ph{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:-2px 0 10px}
+  .panel > .ph b{font-size:13px;font-weight:600}
+  .panel > .ph code{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right}
+  .scope{border:1px dashed var(--line);border-radius:3px;padding:10px;margin-bottom:12px}
+  .scope > .sh{font-family:var(--mono);font-size:11px;color:var(--signal);margin-bottom:8px}
+  .derivebar{font-family:var(--mono);font-size:11px;color:var(--derived);background:var(--surface);
+    border:1px solid var(--line);border-left:3px solid var(--derived);border-radius:2px;padding:7px 9px;margin-bottom:12px;word-break:break-word}
+
+  input[type=text],textarea,select{font:inherit;width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:2px;background:var(--surface);color:var(--ink)}
+  select{width:auto}
+  input:focus-visible,textarea:focus-visible,button:focus-visible,select:focus-visible{outline:2px solid var(--signal);outline-offset:1px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .chips button{font:inherit;font-size:12.5px;padding:4px 9px;border:1px solid var(--line);background:transparent;border-radius:2px;cursor:pointer;color:var(--muted)}
+  .chips button[aria-pressed="true"]{border-color:var(--ink);color:var(--ink);font-weight:600}
+  .field-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;align-items:end}
+  .field-grid label{font-size:11px;color:var(--muted)}
+  .field-grid label span{display:block;margin-bottom:3px}
+  .primary{font:inherit;padding:7px 12px;border:1px solid var(--ink);border-radius:2px;background:var(--ink);color:var(--surface);cursor:pointer}
+  .row-action{font:inherit;font-size:12px;padding:3px 7px;border:1px solid var(--line);border-radius:2px;background:transparent;cursor:pointer;margin-right:4px}
+  input[type=checkbox]{width:17px;height:17px;accent-color:var(--signal)}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:5px 6px;border-bottom:1px solid var(--line)}
+  th{font-size:11px;font-weight:600;color:var(--muted)}
+  td.num,th.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+  tr.total td{font-weight:600;border-top:2px solid var(--ink);border-bottom:none}
+  .empty{color:var(--muted);font-size:13px;padding:8px 0}
+  .stat{display:flex;gap:22px;flex-wrap:wrap}
+  .stat div span{display:block;font-size:11px;color:var(--muted)}
+  .stat div b{font-family:var(--mono);font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+  canvas{width:100%;height:150px;display:block}
+
+  textarea{font-family:var(--mono);font-size:12px;line-height:1.5;min-height:280px;white-space:pre}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0}
+  .row button{font:inherit;font-size:13px;padding:6px 12px;border-radius:2px;cursor:pointer;border:1px solid var(--ink);background:var(--ink);color:var(--surface)}
+  .row button.ghost{background:transparent;color:var(--ink)}
+
+  .err{border:1px solid var(--line);border-left:3px solid var(--bad);background:var(--surface);padding:9px 11px;margin-bottom:8px;border-radius:2px}
+  .err code{font-family:var(--mono);font-size:11px;color:var(--bad);font-weight:600}
+  .err p{margin:3px 0 0;font-size:13px}
+  .err p.where{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+  .err p.sug{font-size:13px}
+  .errhead{font-family:var(--mono);font-size:12px;color:var(--bad);margin:0 0 8px}
+  .ok{font-size:13px;color:var(--muted);font-family:var(--mono)}
+
+  .keys{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px;margin-bottom:2px}
+  .keys td{padding:4px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+  .keys td.k{color:var(--signal);white-space:nowrap}
+  .keys td.k.d{color:var(--derived)}
+  .keys td.v{word-break:break-word}
+  .keys tr.hit td.k{color:var(--flash)}
+  .note{font-size:12.5px;color:var(--muted);margin:0 0 12px}
+  .note b{color:var(--ink);font-weight:600}
+  pre.diff{font-family:var(--mono);font-size:12px;background:var(--surface);border:1px solid var(--line);border-radius:2px;padding:10px;overflow-x:auto;margin:0;line-height:1.4}
+  pre.diff .add{color:var(--derived)}
+  pre.diff .del{color:var(--bad)}
+  pre.diff .keep{color:var(--muted)}
+
+  .fx{width:100%;border-collapse:collapse;font-size:12.5px}
+  .fx td{padding:6px;border-bottom:1px solid var(--line);vertical-align:top}
+  .fx td.n{font-family:var(--mono);white-space:nowrap}
+  .fx td.r{width:34px;font-weight:700;font-family:var(--mono)}
+  .fx tr.pass td.r{color:var(--derived)}
+  .fx tr.fail td.r{color:var(--bad)}
+  .fx td.d{font-family:var(--mono);font-size:11.5px;color:var(--muted);word-break:break-word}
+  .fx tr.fail td.d{color:var(--bad)}
+  .summary{font-family:var(--mono);font-size:13px;margin:0 0 10px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Schema runtime</h1>
+  <p>ChatGPT App — deterministic schema runtime with model-authored schemas.</p>
+  <nav id="tabs" role="tablist">
+    <button role="tab" data-pane="app" aria-selected="true">App</button>
+    <button role="tab" data-pane="schema" aria-selected="false">Schema</button>
+    <button role="tab" data-pane="patch" aria-selected="false">Patches</button>
+    <button role="tab" data-pane="fixtures" aria-selected="false">Fixtures</button>
+    <button role="tab" data-pane="generate" aria-selected="false">Generate</button>
+    <button role="tab" data-pane="store" aria-selected="false">Store</button>
+    <button role="tab" data-pane="manifests" aria-selected="false">Registry</button>
+  </nav>
+</header>
+
+<main>
+  <section class="pane" id="pane-app"><div id="app"></div></section>
+
+  <section class="pane" id="pane-schema" hidden>
+    <p class="note">Validation now runs without mounting, so a schema can be checked before anything is built. Every failure is a structured object: code, node, path, expected, got, and a fix.</p>
+    <div class="row">
+      <button class="ghost" data-load="sync">sync</button>
+      <button class="ghost" data-load="split">split</button>
+      <button class="ghost" data-load="pinned">pinned</button>
+      <button class="ghost" data-load="broken">broken</button>
+      <button class="ghost" data-load="cycle">cycle</button>
+    </div>
+    <textarea id="src" spellcheck="false" autocapitalize="off" autocorrect="off"></textarea>
+    <div class="row">
+      <button id="compose">Compose</button>
+      <button id="check" class="ghost">Check only</button>
+    </div>
+    <div id="errors"></div>
+  </section>
+
+  <section class="pane" id="pane-patch" hidden>
+    <p class="note">Patches are addressed by node id. Type into the filter first — that state should survive the recompose.</p>
+    <div class="row">
+      <button class="ghost" data-patch="total">Add a total row</button>
+      <button class="ghost" data-patch="panel">Add a second panel</button>
+      <button class="ghost" data-patch="dropchart">Remove the chart</button>
+      <button class="ghost" data-patch="reset">Reset to sync</button>
+    </div>
+    <div id="patchOut"><p class="note">No patch applied yet.</p></div>
+  </section>
+
+  <section class="pane" id="pane-fixtures" hidden>
+    <p class="note">Each fixture is a schema with the exact set of error codes it should produce. A pass means the validator found those and nothing else — over-reporting fails as loudly as under-reporting.</p>
+    <div class="row">
+      <button id="runfx">Run fixtures</button>
+      <button id="copyfx" class="ghost">Copy results</button>
+    </div>
+    <div id="fxOut"></div>
+  </section>
+
+  <section class="pane" id="pane-generate" hidden>
+    <p class="note"><b>ChatGPT is the model.</b> Describe the UI you want. This sends a follow-up message into the conversation and asks ChatGPT to author a schema and call the app's <code>render_schema</code> tool. No API key is stored or exposed to the widget.</p>
+    <textarea id="prompt" style="min-height:100px" placeholder="Show me spending by category with a way to filter by description, and a running total."></textarea>
+    <div class="row">
+      <button id="gen">Ask ChatGPT to build it</button>
+    </div>
+    <div id="genOut"><p class="note">You can also ask ChatGPT directly in the conversation, e.g. “Use Schema Runtime to build a filtered spending dashboard.”</p></div>
+  </section>
+
+  <section class="pane" id="pane-store" hidden>
+    <p class="note">Blue keys are written by components. Teal keys are derived and read-only.</p>
+    <table class="keys"><tbody id="storeBody"></tbody></table>
+  </section>
+
+  <section class="pane" id="pane-manifests" hidden>
+    <div id="manifests"></div>
+  </section>
+</main>
+
+<script type="module">
+const esc=s=>String(s??'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+
+/* ============================================================
+   1. STORE
+   ============================================================ */
+class Store {
+  constructor(){ this.data=new Map(); this.subs=new Map(); this.dirty=new Set(); this.queued=false; this.meta=new Map(); }
+  get(k){ return this.data.get(k); }
+  has(k){ return this.data.has(k); }
+  set(k,v){
+    if(Object.is(this.data.get(k),v)) return;
+    this.data.set(k,v); this.dirty.add(k);
+    const m=this.meta.get(k); if(m) m.last=Date.now();
+    this.flush();
+  }
+  subscribe(k,fn){
+    if(!this.subs.has(k)) this.subs.set(k,new Set());
+    this.subs.get(k).add(fn);
+    return ()=>this.subs.get(k)?.delete(fn);
+  }
+  flush(){
+    if(this.queued) return;
+    this.queued=true;
+    queueMicrotask(()=>{
+      this.queued=false;
+      let guard=0;
+      while(this.dirty.size && guard++<50){
+        const keys=[...this.dirty]; this.dirty.clear();
+        for(const k of keys) for(const fn of (this.subs.get(k)||[])) fn(this.data.get(k),k);
+      }
+      onStoreChange();
+    });
+  }
+  resetKeepingData(){
+    const snap=new Map(this.data);
+    this.data.clear(); this.subs.clear(); this.dirty.clear(); this.meta.clear();
+    return snap;
+  }
+}
+
+/* ============================================================
+   2. RESOLVER — lexical, outward.
+     ~/x root · ^/x parent · x nearest scope declaring x
+   ============================================================ */
+function resolvePath(path, stack){
+  if(path.startsWith('~/')) return stack[0].prefix + path.slice(2);
+  if(path.startsWith('^/')) return (stack[stack.length-2]||stack[0]).prefix + path.slice(2);
+  for(let i=stack.length-1;i>=0;i--) if(stack[i].declares.has(path)) return stack[i].prefix + path;
+  const inner=stack[stack.length-1];
+  inner.declares.add(path);
+  return inner.prefix + path;
+}
+
+/* ============================================================
+   3. REGISTRIES
+   ============================================================ */
+const registry=new Map();
+const register=(n,d)=>registry.set(n,d);
+const FNS=new Map();
+const fn=(n,d)=>FNS.set(n,d);
+
+/* ============================================================
+   4. VALIDATOR — pure. Produces a plan and an error list,
+   touches neither the store nor the DOM. Fixtures run this.
+   ============================================================ */
+function planSchema(schema){
+  const errors=[], plan=[], derivs=[], ids=new Set();
+  const keyInfo=new Map();
+
+  function note(key,type,role,nodeId,opts={}){
+    let info=keyInfo.get(key);
+    if(!info){ info={type,writers:[],readers:[],derived:!!opts.derived}; keyInfo.set(key,info); }
+    if(opts.derived) info.derived=true;
+    if(info.type!==type){
+      errors.push({code:'TYPE_MISMATCH',nodeId,path:key,expected:info.type,got:type,
+        suggestion:`Key "${key}" already carries ${info.type}. Bind this ${role} to a key of type ${type}.`});
+    }
+    if(role==='read'){ info.readers.push(nodeId); return; }
+    if(info.derived && !opts.derived){
+      errors.push({code:'WRITE_TO_DERIVED',nodeId,path:key,expected:'a component-owned key',got:'derived key',
+        suggestion:`"${key}" is produced by a derive node. Write to a different key and derive from that.`});
+    }
+    info.writers.push(nodeId);
+  }
+
+  function walk(node, stack){
+    if(!node||typeof node!=='object'||Array.isArray(node)){
+      errors.push({code:'BAD_NODE',nodeId:null,path:null,expected:'object',got:Array.isArray(node)?'array':typeof node,
+        suggestion:'Every entry in "children" must be an object with an "id".'});
+      return;
+    }
+    if(!node.id){
+      errors.push({code:'MISSING_ID',nodeId:null,path:null,expected:'a string id',got:'undefined',
+        suggestion:'Give every node a unique "id" so edits can be applied as patches.'});
+      return;
+    }
+    if(ids.has(node.id)){
+      errors.push({code:'DUPLICATE_ID',nodeId:node.id,path:null,expected:'a unique id',got:node.id,
+        suggestion:`Two nodes are called "${node.id}". Rename one.`});
+      return;
+    }
+    ids.add(node.id);
+
+    if(node.scope!==undefined){
+      const parent=stack[stack.length-1];
+      const scope={name:node.scope,prefix:parent.prefix+node.scope+'/',declares:new Set(node.declares||[])};
+      plan.push({kind:'scope',node,scope});
+      for(const c of (node.children||[])) walk(c,[...stack,scope]);
+      plan.push({kind:'endscope'});
+      return;
+    }
+
+    if(node.derive!==undefined){
+      const f=FNS.get(node.fn);
+      if(!f){
+        errors.push({code:'UNKNOWN_FN',nodeId:node.id,path:String(node.fn),
+          expected:[...FNS.keys()].join(' | '),got:String(node.fn),
+          suggestion:`No derivation function called "${node.fn}".`});
+        return;
+      }
+      const from=node.from||{}, bound={};
+      for(const [slot,type] of Object.entries(f.in)){
+        if(from[slot]===undefined){
+          errors.push({code:'MISSING_INPUT',nodeId:node.id,path:slot,expected:type,got:'undefined',
+            suggestion:`"${node.fn}" needs an input "${slot}" in "from".`});
+          continue;
+        }
+        const key=resolvePath(from[slot],stack);
+        bound[slot]=key; note(key,type,'read',node.id);
+      }
+      for(const slot of Object.keys(from)){
+        if(!(slot in f.in)){
+          errors.push({code:'UNKNOWN_INPUT',nodeId:node.id,path:slot,
+            expected:Object.keys(f.in).join(' | '),got:slot,
+            suggestion:`"${node.fn}" takes no input called "${slot}".`});
+        }
+      }
+      const outKey=resolvePath(node.derive,stack);
+      note(outKey,f.out,'write',node.id,{derived:true});
+      derivs.push({id:node.id,outKey,fn:node.fn,from:bound,args:node.args||{}});
+      plan.push({kind:'derive',node,outKey,from:bound});
+      return;
+    }
+
+    const def=registry.get(node.component);
+    if(!def){
+      errors.push({code:'UNKNOWN_COMPONENT',nodeId:node.id,path:String(node.component),
+        expected:[...registry.keys()].join(' | '),got:String(node.component),
+        suggestion:`No component registered as "${node.component}".`});
+      return;
+    }
+    const m=def.manifest, bind=node.bind||{}, bound={};
+    for(const [slot,type] of Object.entries(m.reads||{})){
+      const key=resolvePath(bind[slot]||slot,stack);
+      bound[slot]=key; note(key,type,'read',node.id);
+    }
+    for(const [slot,type] of Object.entries(m.writes||{})){
+      const key=resolvePath(bind[slot]||slot,stack);
+      bound[slot]=key; note(key,type,'write',node.id);
+    }
+    for(const [prop,type] of Object.entries(m.props||{})){
+      if(!type.endsWith('?') && node.props?.[prop]===undefined){
+        errors.push({code:'MISSING_REQUIRED_PROP',nodeId:node.id,path:prop,expected:type,got:'undefined',
+          suggestion:`Component "${node.component}" requires prop "${prop}".`});
+      }
+    }
+    for(const slot of Object.keys(bind)){
+      if(!(slot in (m.reads||{})) && !(slot in (m.writes||{}))){
+        errors.push({code:'UNKNOWN_BINDING',nodeId:node.id,path:slot,
+          expected:Object.keys({...m.reads,...m.writes}).join(' | ')||'(none)',got:slot,
+          suggestion:`"${node.component}" has no slot called "${slot}".`});
+      }
+    }
+    plan.push({kind:'component',node,def,bound});
+  }
+
+  const rootScope={name:'',prefix:'',declares:new Set(schema?.declares||[])};
+  walk({...schema,id:schema?.id||'root'},[rootScope]);
+
+  for(const [key,info] of keyInfo){
+    if(info.readers.length && !info.writers.length){
+      errors.push({code:'UNRESOLVED_PATH',nodeId:info.readers[0],path:key,
+        expected:'a component or derive node writing this key',got:'no writer',
+        suggestion:`Nothing writes "${key}". Check the spelling, or declare it in an enclosing scope so the path resolves outward.`});
+    }
+  }
+
+  const order=topoSort(derivs,errors);
+  return {errors,plan,derivs,order,keyInfo,ids};
+}
+
+function topoSort(derivs,errors){
+  const byKey=new Map(derivs.map(d=>[d.outKey,d]));
+  const state=new Map(), out=[];
+  const visit=(d,trail)=>{
+    const s=state.get(d.outKey);
+    if(s==='done') return;
+    if(s==='open'){
+      errors.push({code:'CYCLE',nodeId:d.id,path:[...trail,d.outKey].join(' → '),
+        expected:'an acyclic derivation graph',got:'a cycle',
+        suggestion:'These derive nodes feed each other in a loop. Break the chain.'});
+      return;
+    }
+    state.set(d.outKey,'open');
+    for(const key of Object.values(d.from)){
+      const up=byKey.get(key);
+      if(up) visit(up,[...trail,d.outKey]);
+    }
+    state.set(d.outKey,'done');
+    out.push(d);
+  };
+  for(const d of derivs) visit(d,[]);
+  return out;
+}
+
+/* ============================================================
+   5. MOUNTER
+   ============================================================ */
+function compose(schema, store, root){
+  const p=planSchema(schema);
+  if(p.errors.length) return {ok:false,...p};
+
+  const snapshot=store.resetKeepingData();
+  root.innerHTML='';
+  for(const [key,info] of p.keyInfo)
+    store.meta.set(key,{type:info.type,writers:info.writers,derived:info.derived,last:0});
+
+  let preserved=0;
+  for(const [key,info] of p.keyInfo){
+    if(!info.derived && snapshot.has(key)){ store.data.set(key,snapshot.get(key)); preserved++; }
+  }
+  const collected=[...snapshot.keys()].filter(k=>!p.keyInfo.has(k));
+
+  const stackEl=[root];
+  for(const step of p.plan){
+    if(step.kind==='scope'){
+      const el=document.createElement('div'); el.className='scope';
+      el.innerHTML=`<div class="sh">scope ${esc(step.scope.prefix)} · declares ${[...step.scope.declares].map(esc).join(', ')||'—'}</div>`;
+      stackEl[stackEl.length-1].appendChild(el); stackEl.push(el);
+    } else if(step.kind==='endscope'){
+      stackEl.pop();
+    } else if(step.kind==='derive'){
+      const el=document.createElement('div'); el.className='derivebar';
+      el.textContent=`${step.outKey} = ${step.node.fn}(${Object.values(step.from).join(', ')})`;
+      stackEl[stackEl.length-1].appendChild(el);
+    } else {
+      const el=document.createElement('section'); el.className='panel';
+      const bindLine=Object.entries(step.bound).map(([s,k])=>esc(`${s}→${k}`)).join('<br>');
+      el.innerHTML=`<div class="ph"><b>${esc(step.node.props?.title||step.node.component)}</b><code>${bindLine}</code></div>`;
+      const body=document.createElement('div'); el.appendChild(body);
+      stackEl[stackEl.length-1].appendChild(el);
+      step.def.mount(ctx(step,body,store));
+    }
+  }
+
+  const run=d=>{
+    const args={...d.args};
+    for(const [slot,key] of Object.entries(d.from)) args[slot]=store.get(key);
+    store.set(d.outKey,FNS.get(d.fn).run(args));
+  };
+  for(const d of p.order){
+    for(const key of Object.values(d.from)) store.subscribe(key,()=>run(d));
+    run(d);
+  }
+
+  return {ok:true,...p,keys:p.keyInfo,preserved,collected};
+}
+
+function ctx(step,el,store){
+  return {
+    el, props:step.node.props||{}, id:step.node.id,
+    read: s=>store.get(step.bound[s]),
+    write:(s,v)=>store.set(step.bound[s],v),
+    seed:(s,v)=>{ if(store.get(step.bound[s])===undefined) store.set(step.bound[s],v); },
+    on:  (s,f)=>store.subscribe(step.bound[s],f),
+    key: s=>step.bound[s]
+  };
+}
+
+/* ============================================================
+   6. DATA + DERIVATIONS
+   ============================================================ */
+const SAMPLE=[
+  ['2026-08-01','Salary — Kestrel Ltd','income',4210.00],
+  ['2026-08-02','Ridgeline Rent','housing',-1480.00],
+  ['2026-08-02','Fen & Fettle groceries','food',-64.20],
+  ['2026-08-04','Metro travelcard','transport',-38.50],
+  ['2026-08-05','Ostmark Coffee','food',-4.80],
+  ['2026-08-06','Thameside Power','utilities',-92.14],
+  ['2026-08-07','Fen & Fettle groceries','food',-51.90],
+  ['2026-08-09','Quill Bookshop','leisure',-27.00],
+  ['2026-08-10','Ostmark Coffee','food',-4.80],
+  ['2026-08-11','Halvard Gym','health',-42.00],
+  ['2026-08-12','Metro top-up','transport',-20.00],
+  ['2026-08-14','Fen & Fettle groceries','food',-73.35],
+  ['2026-08-15','Vantage Broadband','utilities',-35.99],
+  ['2026-08-16','Marlow Cinema','leisure',-19.80],
+  ['2026-08-18','Ostmark Coffee','food',-5.20],
+  ['2026-08-19','Pharmacy — Bell St','health',-12.45],
+  ['2026-08-21','Fen & Fettle groceries','food',-58.10],
+  ['2026-08-22','Freelance — Orrell','income',620.00],
+  ['2026-08-23','Metro travelcard','transport',-38.50],
+  ['2026-08-25','Solveig Restaurant','leisure',-86.40],
+  ['2026-08-26','Thameside Water','utilities',-28.60],
+  ['2026-08-28','Fen & Fettle groceries','food',-61.75],
+  ['2026-08-29','Ostmark Coffee','food',-4.80],
+  ['2026-08-30','Ridgeline Contents Ins.','housing',-18.20]
+].map(([date,desc,category,amount],i)=>({id:'t'+i,date,desc,category,amount}));
+
+const CATS=[...new Set(SAMPLE.map(t=>t.category))].sort();
+const money=n=>(n<0?'−':'')+'£'+Math.abs(n).toFixed(2);
+
+const valueAt=(record,path)=>String(path||'').split('.').reduce((v,k)=>v?.[k],record);
+const displayValue=(value,format)=>{
+  if(format==='currency') return money(Number(value)||0);
+  if(format==='date' && value) return String(value).slice(0,10);
+  if(format==='boolean') return value?'Yes':'No';
+  return value==null?'':String(value);
+};
+
+fn('filterRows',{in:{rows:'array',query:'object'},out:'array',run:({rows,query})=>{
+  if(!rows) return [];
+  if(!query) return rows;
+  const t=(query.text||'').trim().toLowerCase();
+  const fields=query.fields?.length?query.fields:Object.keys(rows[0]||{});
+  return rows.filter(r=>(!query.category||r.category===query.category)&&(!t||fields.some(f=>String(valueAt(r,f)??'').toLowerCase().includes(t))));
+}});
+fn('countRows',{in:{rows:'array'},out:'object',run:({rows=[]})=>({count:rows.length})});
+fn('groupCount',{in:{rows:'array'},out:'array',run:({rows=[],field='category'})=>{
+  const m=new Map();
+  for(const r of rows){ const label=String(valueAt(r,field)??'Unspecified'); m.set(label,(m.get(label)||0)+1); }
+  return [...m].map(([label,value])=>({label,value})).sort((a,b)=>b.value-a.value);
+}});
+fn('totals',{in:{rows:'array'},out:'object',run:({rows=[]})=>({
+  count:rows.length,
+  out:rows.filter(r=>r.amount<0).reduce((a,r)=>a+r.amount,0),
+  in:rows.filter(r=>r.amount>0).reduce((a,r)=>a+r.amount,0)
+})});
+fn('byCategory',{in:{rows:'array'},out:'array',run:({rows=[]})=>{
+  const m=new Map();
+  for(const r of rows) if(r.amount<0) m.set(r.category,(m.get(r.category)||0)+Math.abs(r.amount));
+  return [...m].map(([label,value])=>({label,value})).sort((a,b)=>b.value-a.value);
+}});
+fn('withTotalRow',{in:{rows:'array'},out:'array',run:({rows=[]})=>{
+  if(!rows.length) return rows;
+  const sum=rows.reduce((a,r)=>a+r.amount,0);
+  return [...rows,{id:'__total',date:'',desc:'Total',category:'',amount:sum,isTotal:true}];
+}});
+fn('sortByAmount',{in:{rows:'array'},out:'array',run:({rows=[]})=>[...rows].sort((a,b)=>a.amount-b.amount)});
+
+/* ============================================================
+   7. COMPONENTS
+   ============================================================ */
+register('source',{
+  manifest:{reads:{},writes:{rows:'array'},props:{data:'array?',label:'string?'}},
+  mount(c){
+    const data=Array.isArray(c.props.data)?c.props.data:SAMPLE;
+    c.seed('rows',data);
+    c.el.innerHTML=`<div class="empty">${data.length} ${esc(c.props.label||'records')} → <code>${esc(c.key('rows'))}</code></div>`;
+  }
+});
+register('collection',{
+  manifest:{reads:{command:'object'},writes:{rows:'array'},props:{data:'array?',persistKey:'string?',label:'string?'}},
+  mount(c){
+    let rows;
+    try{ rows=c.props.persistKey?JSON.parse(localStorage.getItem(c.props.persistKey)||'null'):null; }catch{}
+    if(!Array.isArray(rows)) rows=Array.isArray(c.props.data)?c.props.data:[];
+    c.seed('rows',rows);
+    const commit=next=>{ rows=next; c.write('rows',rows); if(c.props.persistKey) localStorage.setItem(c.props.persistKey,JSON.stringify(rows)); };
+    let lastNonce;
+    c.on('command',cmd=>{
+      if(!cmd||cmd.nonce===lastNonce) return; lastNonce=cmd.nonce;
+      if(cmd.operation==='append') commit([...rows,{id:cmd.record?.id||crypto.randomUUID(),...cmd.record}]);
+      if(cmd.operation==='remove') commit(rows.filter(r=>r.id!==cmd.id));
+      if(cmd.operation==='toggle') commit(rows.map(r=>r.id===cmd.id?{...r,[cmd.field]:!r[cmd.field]}:r));
+      if(cmd.operation==='set') commit(rows.map(r=>r.id===cmd.id?{...r,[cmd.field]:cmd.value}:r));
+    });
+    c.el.innerHTML=`<div class="empty">${rows.length} ${esc(c.props.label||'records')} · state owner${c.props.persistKey?' · saved on this device':''}</div>`;
+    c.on('rows',v=>{ c.el.firstElementChild.textContent=`${(v||[]).length} ${c.props.label||'records'} · state owner${c.props.persistKey?' · saved on this device':''}`; });
+  }
+});
+register('filter',{
+  manifest:{reads:{},writes:{query:'object'},props:{title:'string?',placeholder:'string?',fields:'array?',options:'array?'}},
+  mount(c){
+    let q=c.read('query')||{text:'',category:null,fields:c.props.fields||[]};
+    const input=document.createElement('input');
+    input.type='text'; input.placeholder=c.props.placeholder||'Search records'; input.value=q.text||'';
+    const chips=document.createElement('div'); chips.className='chips';
+    const vals=[null,...(c.props.options||[])];
+    const paint=()=>[...chips.children].forEach((b,i)=>b.setAttribute('aria-pressed',String(q.category===vals[i])));
+    vals.forEach(v=>{
+      const b=document.createElement('button');
+      b.textContent=v||'all';
+      b.onclick=()=>{ q={...q,category:q.category===v?null:v}; paint(); c.write('query',q); };
+      chips.appendChild(b);
+    });
+    input.oninput=()=>{ q={...q,text:input.value}; c.write('query',q); };
+    c.el.append(input); if(c.props.options?.length) c.el.append(chips); paint();
+    c.seed('query',q);
+  }
+});
+register('form',{
+  manifest:{reads:{},writes:{command:'object'},props:{fields:'array',submitLabel:'string?',operation:'string?'}},
+  mount(c){
+    const form=document.createElement('form'); form.className='field-grid';
+    const controls=new Map();
+    for(const f of c.props.fields){
+      const label=document.createElement('label'), span=document.createElement('span'), input=document.createElement(f.type==='select'?'select':'input');
+      span.textContent=f.label||f.name; label.appendChild(span);
+      if(f.type==='select') for(const option of (f.options||[])){ const el=document.createElement('option'); el.value=option.value??option; el.textContent=option.label??option; input.appendChild(el); }
+      else { input.type=f.type==='number'?'number':f.type==='date'?'date':'text'; input.placeholder=f.placeholder||''; }
+      if(f.required) input.required=true; label.appendChild(input); form.appendChild(label); controls.set(f.name,{input,field:f});
+    }
+    const button=document.createElement('button'); button.className='primary'; button.type='submit'; button.textContent=c.props.submitLabel||'Add'; form.appendChild(button);
+    form.onsubmit=e=>{ e.preventDefault(); const record={}; for(const [name,{input,field}] of controls){ let v=input.value; if(field.type==='number') v=Number(v); if(field.type==='boolean') v=input.checked; record[name]=v; } c.write('command',{operation:c.props.operation||'append',record,nonce:crypto.randomUUID()}); form.reset(); };
+    c.el.appendChild(form);
+  }
+});
+register('table',{
+  manifest:{reads:{rows:'array'},writes:{},props:{title:'string?',columns:'array?',emptyText:'string?'}},
+  mount(c){
+    const wrap=document.createElement('div'); c.el.appendChild(wrap);
+    const draw=()=>{
+      const rows=c.read('rows')||[];
+      if(!rows.length){ wrap.innerHTML=`<div class="empty">${esc(c.props.emptyText||'No records.')}</div>`; return; }
+      const columns=c.props.columns||[{field:'date',label:'Date',format:'date'},{field:'desc',label:'Description'},{field:'amount',label:'Amount',format:'currency'}];
+      wrap.innerHTML='<table><thead><tr>'+columns.map(x=>`<th${x.align==='right'?' class="num"':''}>${esc(x.label||x.field)}</th>`).join('')+'</tr></thead><tbody>'
+        +rows.slice(0,45).map(r=>`<tr${r.isTotal?' class="total"':''}>`+columns.map(x=>`<td${x.align==='right'?' class="num"':''}>${esc(displayValue(valueAt(r,x.field),x.format))}</td>`).join('')+'</tr>').join('')
+        +'</tbody></table>';
+    };
+    c.on('rows',draw); draw();
+  }
+});
+register('actionTable',{
+  manifest:{reads:{rows:'array'},writes:{command:'object'},props:{title:'string?',columns:'array',actions:'array?',emptyText:'string?'}},
+  mount(c){
+    const wrap=document.createElement('div'); c.el.appendChild(wrap);
+    const draw=()=>{
+      const rows=c.read('rows')||[], columns=c.props.columns||[], actions=c.props.actions||[];
+      if(!rows.length){ wrap.innerHTML=`<div class="empty">${esc(c.props.emptyText||'No records.')}</div>`; return; }
+      const table=document.createElement('table');
+      table.innerHTML='<thead><tr>'+columns.map(x=>`<th>${esc(x.label||x.field)}</th>`).join('')+(actions.length?'<th>Actions</th>':'')+'</tr></thead><tbody></tbody>';
+      const body=table.querySelector('tbody');
+      for(const row of rows){ const tr=document.createElement('tr'); for(const col of columns){ const td=document.createElement('td'); if(col.type==='checkbox'){ const input=document.createElement('input'); input.type='checkbox'; input.checked=!!valueAt(row,col.field); input.onchange=()=>c.write('command',{operation:'toggle',id:row.id,field:col.field,nonce:crypto.randomUUID()}); td.appendChild(input); } else td.textContent=displayValue(valueAt(row,col.field),col.format); tr.appendChild(td); } if(actions.length){ const td=document.createElement('td'); for(const action of actions){ const b=document.createElement('button'); b.className='row-action'; b.textContent=action.label; b.onclick=()=>c.write('command',{operation:action.operation,id:row.id,field:action.field,value:action.value,nonce:crypto.randomUUID()}); td.appendChild(b); } tr.appendChild(td); } body.appendChild(tr); }
+      wrap.replaceChildren(table);
+    };
+    c.on('rows',draw); draw();
+  }
+});
+register('chart',{
+  manifest:{reads:{series:'array'},writes:{},props:{title:'string?'}},
+  mount(c){
+    const cv=document.createElement('canvas'); c.el.appendChild(cv);
+    const draw=()=>{
+      const data=c.read('series')||[];
+      const dpr=window.devicePixelRatio||1, W=cv.clientWidth||320, H=150;
+      cv.width=W*dpr; cv.height=H*dpr;
+      const x=cv.getContext('2d'); x.scale(dpr,dpr); x.clearRect(0,0,W,H);
+      if(!data.length){ x.fillStyle='#667085'; x.font='13px system-ui'; x.fillText('Nothing to plot.',0,20); return; }
+      const max=Math.max(...data.map(d=>d.value)), bw=Math.min(56,(W-8)/data.length-8);
+      data.forEach((d,i)=>{
+        const h=Math.round((d.value/max)*(H-34)), px=i*(bw+8), py=H-22-h;
+        x.fillStyle='#2350C8'; x.fillRect(px,py,bw,h);
+        x.fillStyle='#16181D'; x.font='10px ui-monospace,monospace'; x.fillText(Math.round(d.value),px,py-4);
+        x.fillStyle='#667085'; x.fillText(d.label.slice(0,7),px,H-8);
+      });
+    };
+    c.on('series',draw); requestAnimationFrame(draw); window.addEventListener('resize',draw);
+  }
+});
+register('stat',{
+  manifest:{reads:{totals:'object'},writes:{},props:{title:'string?',metrics:'array?'}},
+  mount(c){
+    const el=document.createElement('div'); el.className='stat'; c.el.appendChild(el);
+    const draw=()=>{
+      const t=c.read('totals')||{count:0,out:0,in:0};
+      const metrics=c.props.metrics||[{field:'count',label:'Shown'},{field:'out',label:'Out',format:'currency'},{field:'in',label:'In',format:'currency'}];
+      el.innerHTML=metrics.map(m=>`<div><span>${esc(m.label||m.field)}</span><b>${esc(displayValue(valueAt(t,m.field),m.format))}</b></div>`).join('');
+    };
+    c.on('totals',draw); draw();
+  }
+});
+register('note',{
+  manifest:{reads:{},writes:{},props:{text:'string'}},
+  mount(c){ c.el.innerHTML=`<div class="empty">${esc(c.props.text)}</div>`; }
+});
+
+/* ============================================================
+   8. SCHEMAS
+   ============================================================ */
+const SCHEMAS={
+sync:{
+  id:'root',scope:'app',declares:['rows','query','visible','sums','series'],
+  children:[
+    {id:'src',component:'source'},
+    {id:'f1',component:'filter',props:{title:'Filter'}},
+    {id:'d-visible',derive:'visible',fn:'filterRows',from:{rows:'rows',query:'query'}},
+    {id:'d-sums',derive:'sums',fn:'totals',from:{rows:'visible'}},
+    {id:'d-cats',derive:'series',fn:'byCategory',from:{rows:'visible'}},
+    {id:'s1',component:'stat',bind:{totals:'sums'},props:{title:'Totals'}},
+    {id:'c1',component:'chart',bind:{series:'series'},props:{title:'Spend by category'}},
+    {id:'t1',component:'table',bind:{rows:'visible'},props:{title:'Transactions'}}
+  ]
+},
+split:{
+  id:'root',scope:'app',declares:['rows'],
+  children:[
+    {id:'src',component:'source'},
+    {id:'left',scope:'left',declares:['query','visible'],children:[
+      {id:'f1',component:'filter',props:{title:'Filter A'}},
+      {id:'dl',derive:'visible',fn:'filterRows',from:{rows:'~/app/rows',query:'query'}},
+      {id:'t1',component:'table',bind:{rows:'visible'},props:{title:'Transactions A'}}
+    ]},
+    {id:'right',scope:'right',declares:['query','visible'],children:[
+      {id:'f2',component:'filter',props:{title:'Filter B'}},
+      {id:'dr',derive:'visible',fn:'filterRows',from:{rows:'~/app/rows',query:'query'}},
+      {id:'t2',component:'table',bind:{rows:'visible'},props:{title:'Transactions B'}}
+    ]}
+  ]
+},
+pinned:{
+  id:'root',scope:'app',declares:['rows','query','visible'],
+  children:[
+    {id:'src',component:'source'},
+    {id:'d1',derive:'visible',fn:'filterRows',from:{rows:'rows',query:'query'}},
+    {id:'left',scope:'left',children:[
+      {id:'f1',component:'filter',props:{title:'Filter A'}},
+      {id:'t1',component:'table',bind:{rows:'visible'},props:{title:'Transactions A'}}
+    ]},
+    {id:'right',scope:'right',children:[
+      {id:'f2',component:'filter',props:{title:'Filter B'}},
+      {id:'t2',component:'table',bind:{rows:'visible'},props:{title:'Transactions B'}}
+    ]}
+  ]
+},
+broken:{
+  id:'root',scope:'app',declares:['rows','query','visible'],
+  children:[
+    {id:'src',component:'source'},
+    {id:'f1',component:'filter'},
+    {id:'d1',derive:'visible',fn:'filterRows',from:{rows:'rows',query:'query'}},
+    {id:'t1',component:'tabel',bind:{rows:'visible'}},
+    {id:'t2',component:'table',bind:{rows:'~/app/visable'}},
+    {id:'t2',component:'table',bind:{rows:'visible'}},
+    {id:'w1',component:'source',bind:{rows:'visible'}},
+    {id:'n1',component:'note'},
+    {id:'d2',derive:'junk',fn:'filterRows',from:{rows:'rows'}},
+    {id:'d3',derive:'junk2',fn:'sortByAmount',from:{rows:'rows',order:'query'}},
+    {id:'s1',component:'stat',bind:{colour:'sums'}}
+  ]
+},
+cycle:{
+  id:'root',scope:'app',declares:['rows','a','b'],
+  children:[
+    {id:'src',component:'source'},
+    {id:'da',derive:'a',fn:'sortByAmount',from:{rows:'b'}},
+    {id:'db',derive:'b',fn:'sortByAmount',from:{rows:'a'}},
+    {id:'t1',component:'table',bind:{rows:'a'}}
+  ]
+}
+};
+
+/* ============================================================
+   9. FIXTURES — schema in, exact error-code set out.
+   ============================================================ */
+const FIXTURES=[
+ {name:'valid/sync', expect:[], schema:SCHEMAS.sync},
+ {name:'valid/split', expect:[], schema:SCHEMAS.split},
+ {name:'valid/pinned', expect:[], schema:SCHEMAS.pinned},
+ {name:'valid/generic-collection', expect:[], schema:{
+   id:'records',scope:'app',declares:['rows','command','query','visible','summary','series'],children:[
+     {id:'state',component:'collection',bind:{rows:'rows',command:'command'},props:{data:[],persistKey:'fixture-records'}},
+     {id:'create',component:'form',bind:{command:'command'},props:{fields:[{name:'name',label:'Name',required:true}]}},
+     {id:'search',component:'filter',bind:{query:'query'},props:{fields:['name']}},
+     {id:'visible',derive:'visible',fn:'filterRows',from:{rows:'rows',query:'query'}},
+     {id:'summary',derive:'summary',fn:'countRows',from:{rows:'visible'}},
+     {id:'series',derive:'series',fn:'groupCount',from:{rows:'visible'},args:{field:'status'}},
+     {id:'count',component:'stat',bind:{totals:'summary'},props:{metrics:[{field:'count',label:'Records'}]}},
+     {id:'groups',component:'chart',bind:{series:'series'}},
+     {id:'records-table',component:'actionTable',bind:{rows:'visible',command:'command'},props:{columns:[{field:'name',label:'Name'}],actions:[{label:'Remove',operation:'remove'}]}}
+   ]
+ }},
+ {name:'valid/parent-escape', expect:[], schema:{
+   id:'root',scope:'app',declares:['rows'],children:[
+     {id:'src',component:'source'},
+     {id:'p',scope:'panel',declares:['query','visible'],children:[
+       {id:'f1',component:'filter'},
+       {id:'d1',derive:'visible',fn:'filterRows',from:{rows:'^/rows',query:'query'}},
+       {id:'t1',component:'table',bind:{rows:'visible'}}
+     ]}
+   ]}},
+ {name:'unknown-component', expect:['UNKNOWN_COMPONENT'], schema:{
+   id:'root',scope:'app',declares:['rows'],children:[
+     {id:'src',component:'source'},
+     {id:'t1',component:'tabel',bind:{rows:'rows'}}
+   ]}},
+ {name:'unknown-binding', expect:['UNKNOWN_BINDING'], schema:{
+   id:'root',scope:'app',declares:['rows'],children:[
+     {id:'src',component:'source'},
+     {id:'t1',component:'table',bind:{rows:'rows',colour:'rows'}}
+   ]}},
+ {name:'unresolved-path', expect:['UNRESOLVED_PATH'], schema:{
+   id:'root',scope:'app',declares:['rows'],children:[
+     {id:'src',component:'source'},
+     {id:'t1',component:'table',bind:{rows:'rowz'}}
+   ]}},
+ {name:'duplicate-id', expect:['DUPLICATE_ID'], schema:{
+   id:'root',scope:'app',declares:['rows'],children:[
+     {id:'src',component:'source'},
+     {id:'t1',component:'table',bind:{rows:'rows'}},
+     {id:'t1',component:'table',bind:{rows:'rows'}}
+   ]}},
+ {name:'missing-id', expect:['MISSING_ID'], schema:{
+   id:'root',scope:'app',declares:['rows'],children:[
+     {id:'src',component:'source'},
+     {component:'table',bind:{rows:'rows'}}
+   ]}},
+ {name:'bad-node', expect:['BAD_NODE'], schema:{
+   id:'root',scope:'app',declares:['rows'],children:[
+     {id:'src',component:'source'},
+     'oops'
+   ]}},
+ {name:'missing-required-prop', expect:['MISSING_REQUIRED_PROP'], schema:{
+   id:'root',scope:'app',children:[{id:'n1',component:'note'}]}},
+ {name:'write-to-derived', expect:['WRITE_TO_DERIVED'], schema:{
+   id:'root',scope:'app',declares:['rows','query','visible'],children:[
+     {id:'src',component:'source'},
+     {id:'f1',component:'filter'},
+     {id:'d1',derive:'visible',fn:'filterRows',from:{rows:'rows',query:'query'}},
+     {id:'w1',component:'source',bind:{rows:'visible'}}
+   ]}},
+ {name:'type-mismatch', expect:['TYPE_MISMATCH'], schema:{
+   id:'root',scope:'app',declares:['rows','query','visible','sums'],children:[
+     {id:'src',component:'source'},
+     {id:'f1',component:'filter'},
+     {id:'d1',derive:'visible',fn:'filterRows',from:{rows:'rows',query:'query'}},
+     {id:'d2',derive:'sums',fn:'totals',from:{rows:'visible'}},
+     {id:'t1',component:'table',bind:{rows:'sums'}}
+   ]}},
+ {name:'cycle', expect:['CYCLE'], schema:SCHEMAS.cycle},
+ {name:'unknown-fn', expect:['UNKNOWN_FN'], schema:{
+   id:'root',scope:'app',declares:['rows'],children:[
+     {id:'src',component:'source'},
+     {id:'d1',derive:'x',fn:'nope',from:{rows:'rows'}}
+   ]}},
+ {name:'missing-input', expect:['MISSING_INPUT'], schema:{
+   id:'root',scope:'app',declares:['rows'],children:[
+     {id:'src',component:'source'},
+     {id:'d1',derive:'visible',fn:'filterRows',from:{rows:'rows'}}
+   ]}},
+ {name:'unknown-input', expect:['UNKNOWN_INPUT'], schema:{
+   id:'root',scope:'app',declares:['rows'],children:[
+     {id:'src',component:'source'},
+     {id:'d1',derive:'sorted',fn:'sortByAmount',from:{rows:'rows',order:'rows'}}
+   ]}}
+];
+
+function runFixtures(){
+  return FIXTURES.map(f=>{
+    let actual;
+    try{ actual=planSchema(structuredClone(f.schema)).errors.map(e=>e.code); }
+    catch(err){ actual=['THREW: '+err.message]; }
+    const got=[...new Set(actual)].sort();
+    const want=[...new Set(f.expect)].sort();
+    const missing=want.filter(c=>!got.includes(c));
+    const extra=got.filter(c=>!want.includes(c));
+    return {name:f.name,want,got,missing,extra,pass:!missing.length&&!extra.length};
+  });
+}
+
+/* ============================================================
+   10. PATCHES
+   ============================================================ */
+function findNode(node,id){
+  if(node.id===id) return node;
+  for(const c of (node.children||[])){ const r=findNode(c,id); if(r) return r; }
+  return null;
+}
+function findParent(node,id){
+  for(const c of (node.children||[])){
+    if(c.id===id) return node;
+    const r=findParent(c,id); if(r) return r;
+  }
+  return null;
+}
+function applyPatch(schema,ops){
+  const s=structuredClone(schema);
+  for(const op of ops){
+    if(op.op==='add'){
+      const p=findNode(s,op.parent);
+      if(!p) throw new Error(`patch target "${op.parent}" not found`);
+      p.children=p.children||[];
+      const at=op.after?p.children.findIndex(c=>c.id===op.after)+1:p.children.length;
+      p.children.splice(at,0,structuredClone(op.node));
+    } else if(op.op==='remove'){
+      const p=findParent(s,op.id);
+      if(!p) throw new Error(`patch target "${op.id}" not found`);
+      p.children=p.children.filter(c=>c.id!==op.id);
+    } else if(op.op==='merge'){
+      const n=findNode(s,op.id);
+      if(!n) throw new Error(`patch target "${op.id}" not found`);
+      const bind={...n.bind,...(op.patch.bind||{})};
+      Object.assign(n,op.patch);
+      if(op.patch.bind) n.bind=bind;
+    }
+  }
+  return s;
+}
+const PATCHES={
+  total:[
+    {op:'add',parent:'app',after:'d-visible',
+     node:{id:'d-total',derive:'visibleWithTotal',fn:'withTotalRow',from:{rows:'visible'}}},
+    {op:'merge',id:'t1',patch:{bind:{rows:'visibleWithTotal'}}}
+  ],
+  panel:[
+    {op:'add',parent:'app',
+     node:{id:'p2',scope:'compare',declares:['query','visible'],children:[
+       {id:'f2',component:'filter',props:{title:'Compare'}},
+       {id:'d2',derive:'visible',fn:'filterRows',from:{rows:'~/app/rows',query:'query'}},
+       {id:'t2',component:'table',bind:{rows:'visible'},props:{title:'Comparison'}}
+     ]}}
+  ],
+  dropchart:[{op:'remove',id:'c1'},{op:'remove',id:'d-cats'}]
+};
+
+/* ============================================================
+   11. CHATGPT APP BRIDGE
+   ============================================================ */
+function schemaFromToolOutput(output){
+  return output && typeof output==='object' && output.schema && typeof output.schema==='object'
+    ? output.schema : null;
+}
+
+function acceptToolOutput(output){
+  const schema=schemaFromToolOutput(output);
+  if(!schema) return false;
+  src.value=JSON.stringify(schema,null,2);
+  const res=run();
+  const tab=document.querySelector('#tabs button[data-pane="app"]');
+  if(tab) tab.click();
+  return !!res.ok;
+}
+
+async function askChatGPT(prompt){
+  const message=[
+    'Use the Schema Runtime app to implement this request:',
+    prompt,
+    '',
+    'Author a valid schema using the app contract and call render_schema with that schema. Do not merely describe the schema.'
+  ].join('\n');
+  if(window.openai?.sendFollowUpMessage){
+    await window.openai.sendFollowUpMessage({prompt:message});
+    return;
+  }
+  throw new Error('This widget is not running inside a ChatGPT Apps host.');
+}
+
+/* ============================================================
+   13. SHELL
+   ============================================================ */
+const store=new Store();
+const $=s=>document.querySelector(s);
+const src=$('#src'), out=$('#errors'), app=$('#app');
+let lastIds=new Set(), lastFx=null;
+
+document.querySelectorAll('[data-load]').forEach(b=>{
+  b.onclick=()=>{ src.value=JSON.stringify(SCHEMAS[b.dataset.load],null,2); run(); };
+});
+
+document.querySelectorAll('[data-patch]').forEach(b=>{
+  b.onclick=()=>{
+    if(b.dataset.patch==='reset'){
+      src.value=JSON.stringify(SCHEMAS.sync,null,2);
+      $('#patchOut').innerHTML='<p class="note">Reset to the sync schema.</p>';
+      run(); return;
+    }
+    const ops=PATCHES[b.dataset.patch];
+    let before,after;
+    try{ before=JSON.parse(src.value); after=applyPatch(before,ops); }
+    catch(e){ $('#patchOut').innerHTML=`<div class="err"><code>PATCH_FAILED</code><p>${esc(e.message)}</p></div>`; return; }
+    const prevIds=new Set(lastIds);
+    src.value=JSON.stringify(after,null,2);
+    const res=run();
+    const survived=[...prevIds].filter(i=>lastIds.has(i)).length;
+    $('#patchOut').innerHTML=
+      `<pre class="diff">${diffText(before,after)}</pre>
+       <p class="note">${ops.length} op${ops.length>1?'s':''} · ${survived}/${prevIds.size} previous ids survived · ${
+         res.ok?`${res.preserved} keys carried over, ${res.collected.length} collected`:'compose failed'}</p>`;
+  };
+});
+
+function diffText(a,b){
+  const A=JSON.stringify(a,null,2).split('\n'), B=JSON.stringify(b,null,2).split('\n');
+  const setA=new Set(A.map(s=>s.trim())), setB=new Set(B.map(s=>s.trim()));
+  const dels=A.filter(l=>!setB.has(l.trim()));
+  const adds=B.filter(l=>!setA.has(l.trim()));
+  return [
+    ...dels.map(l=>`<span class="del">- ${esc(l)}</span>`),
+    ...adds.map(l=>`<span class="add">+ ${esc(l)}</span>`),
+    `<span class="keep">  ${B.length-adds.length} of ${B.length} lines unchanged</span>`
+  ].join('\n');
+}
+
+$('#tabs').onclick=e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  document.querySelectorAll('#tabs button').forEach(x=>x.setAttribute('aria-selected',String(x===b)));
+  document.querySelectorAll('.pane').forEach(p=>p.hidden=p.id!=='pane-'+b.dataset.pane);
+  if(b.dataset.pane==='store') renderStore();
+  if(b.dataset.pane==='fixtures' && !lastFx) paintFixtures();
+};
+$('#compose').onclick=run;
+$('#check').onclick=()=>{
+  let schema;
+  try{ schema=JSON.parse(src.value); }
+  catch(err){ return paintErrors([jsonErr(err)],null); }
+  const p=planSchema(schema);
+  paintErrors(p.errors,p.errors.length?null:{keys:p.keyInfo,preserved:0,checkedOnly:true});
+};
+$('#runfx').onclick=paintFixtures;
+$('#copyfx').onclick=()=>{
+  const text=JSON.stringify(lastFx||runFixtures(),null,2);
+  navigator.clipboard?.writeText(text).then(
+    ()=>{ $('#copyfx').textContent='Copied'; setTimeout(()=>$('#copyfx').textContent='Copy results',1200); },
+    ()=>{}
+  );
+};
+
+
+$('#gen').onclick=async()=>{
+  const prompt=$('#prompt').value.trim();
+  if(!prompt) return $('#genOut').innerHTML='<p class="note">Describe what you want built.</p>';
+  $('#gen').disabled=true;
+  $('#genOut').innerHTML='<p class="ok">sent to ChatGPT…</p>';
+  try{
+    await askChatGPT(prompt);
+    $('#genOut').innerHTML='<p class="note">Request sent. ChatGPT will call <code>render_schema</code>; the returned schema will mount here automatically.</p>';
+  }catch(e){
+    $('#genOut').innerHTML=`<div class="err"><code>HOST_UNAVAILABLE</code><p>${esc(e.message)}</p></div>`;
+  }finally{ $('#gen').disabled=false; }
+};
+
+const jsonErr=err=>({code:'INVALID_JSON',nodeId:null,path:null,expected:'valid JSON',got:err.message,
+  suggestion:'Fix the syntax and compose again.'});
+
+function run(){
+  let schema;
+  try{ schema=JSON.parse(src.value); }
+  catch(err){ app.innerHTML=''; paintErrors([jsonErr(err)],null); return {ok:false}; }
+  const res=compose(schema,store,app);
+  if(!res.ok) app.innerHTML=`<div class="panel">${errorHTML(res.errors)}</div>`;
+  else lastIds=res.ids;
+  paintErrors(res.errors,res.ok?res:null);
+  renderStore();
+  return res;
+}
+
+function errorHTML(errors){
+  const codes=[...new Set(errors.map(e=>e.code))];
+  return `<p class="errhead">${errors.length} error${errors.length>1?'s':''} · ${codes.map(esc).join(' · ')}</p>`
+    + errors.map(e=>`<div class="err"><code>${esc(e.code)}</code>
+      <p class="where">${e.nodeId?`node ${esc(e.nodeId)}`:''}${e.nodeId&&e.path?' · ':''}${e.path?`path ${esc(e.path)}`:''}</p>
+      <p>expected ${esc(e.expected)} · got ${esc(e.got)}</p>
+      <p class="sug">${esc(e.suggestion)}</p></div>`).join('');
+}
+
+function paintErrors(errors,res){
+  if(!errors.length){
+    const derived=[...res.keys.values()].filter(i=>i.derived).length;
+    out.innerHTML=`<p class="ok">${res.checkedOnly?'valid':'composed'} · ${res.keys.size} keys (${derived} derived)${
+      res.checkedOnly?'':` · ${res.preserved} preserved · ${res.collected.length} collected`} · 0 errors</p>`;
+    return;
+  }
+  out.innerHTML=errorHTML(errors);
+}
+
+function paintFixtures(){
+  lastFx=runFixtures();
+  const passed=lastFx.filter(r=>r.pass).length;
+  $('#fxOut').innerHTML=
+    `<p class="summary">${passed}/${lastFx.length} pass</p><table class="fx"><tbody>`+
+    lastFx.map(r=>`<tr class="${r.pass?'pass':'fail'}">
+      <td class="r">${r.pass?'✓':'✗'}</td>
+      <td class="n">${esc(r.name)}</td>
+      <td class="d">${r.pass
+        ? (r.got.length?esc(r.got.join(', ')):'no errors')
+        : `want ${esc(r.want.join(', ')||'none')}<br>got ${esc(r.got.join(', ')||'none')}`}</td>
+    </tr>`).join('')+'</tbody></table>';
+}
+
+function renderStore(){
+  const body=$('#storeBody'); if(!body) return;
+  const now=Date.now();
+  body.innerHTML=[...store.data.keys()].sort().map(k=>{
+    const m=store.meta.get(k)||{}, v=store.data.get(k);
+    const shown=Array.isArray(v)?`array(${v.length})`:esc(JSON.stringify(v));
+    return `<tr${m.last&&now-m.last<1000?' class="hit"':''}>
+      <td class="k${m.derived?' d':''}">${esc(k)}</td>
+      <td class="v">${shown}<br><span style="color:var(--muted)">${esc(m.type)} · ${m.derived?'derived by':'written by'} ${(m.writers||[]).map(esc).join(', ')||'—'}</span></td></tr>`;
+  }).join('')||'<tr><td class="empty">Nothing composed yet.</td></tr>';
+}
+let pending=false;
+function onStoreChange(){
+  if($('#pane-store').hidden||pending) return;
+  pending=true; setTimeout(()=>{pending=false;renderStore();},60);
+}
+
+$('#manifests').innerHTML=
+  '<div class="panel"><div class="ph"><b>Components</b></div>'+
+  [...registry].map(([n,d])=>{
+    const line=o=>Object.entries(o||{}).map(([k,v])=>`${k}: ${v}`).join(', ')||'—';
+    return `<table class="keys"><tbody><tr><td class="k">${n}</td><td class="v">reads ${line(d.manifest.reads)}<br>writes ${line(d.manifest.writes)}<br>props ${line(d.manifest.props)}</td></tr></tbody></table>`;
+  }).join('')+'</div>'+
+  '<div class="panel"><div class="ph"><b>Derivations</b></div>'+
+  [...FNS].map(([n,f])=>`<table class="keys"><tbody><tr><td class="k d">${n}</td><td class="v">in ${Object.entries(f.in).map(([k,v])=>`${k}: ${v}`).join(', ')}<br>out ${f.out}</td></tr></tbody></table>`).join('')+'</div>';
+
+src.value=JSON.stringify(SCHEMAS.sync,null,2);
+run();
+
+// Apply the tool result that caused ChatGPT to render this widget.
+acceptToolOutput(window.openai?.toolOutput);
+window.addEventListener('openai:set_globals',e=>acceptToolOutput(e.detail?.globals?.toolOutput));
+</script>
+</body>
+</html>

@@ -11,26 +11,29 @@ import { z } from "zod";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const WIDGET_URI = "ui://schema-runtime/schema-runtime-v1.html";
-const widgetBase64 = [0, 1, 2, 3, 4]
-  .map((i) => fs.readFileSync(path.join(ROOT, "assets", `schema-runtime.b64.${i}`), "utf8"))
+const widgetBase64 = fs.readdirSync(path.join(ROOT, "assets"))
+  .filter((name) => /^schema-runtime\.b64\.\d+$/.test(name))
+  .sort((a, b) => Number(a.split(".").at(-1)) - Number(b.split(".").at(-1)))
+  .map((name) => fs.readFileSync(path.join(ROOT, "assets", name), "utf8"))
   .join("");
 const widgetHtml = Buffer.from(widgetBase64, "base64").toString("utf8");
 
-const CONTRACT = `Schema Runtime contract. Root is a scope. Every node needs a unique id. Components: source writes rows; filter writes query; table reads rows; chart reads series; stat reads totals; note requires text. Derivations: filterRows, totals, byCategory, withTotalRow, sortByAmount. Derived keys are read-only and derivations must be acyclic.`;
+const CONTRACT = `Schema Runtime contract. Root is a scope and every node needs a unique id. Bare paths resolve to the nearest scope declaration; ~/x is root-relative and ^/x is parent-relative. Components: source writes rows and accepts optional props data and label; collection reads command, writes rows, and accepts optional data, persistKey, and label; filter writes query and accepts optional fields; form writes command and requires a generic fields array; table reads rows and accepts generic columns; actionTable reads rows, writes command, and requires columns with optional generic row actions; chart reads series; stat reads totals and accepts optional metrics; note requires text. Collection commands are generic append, remove, toggle, and set operations. Derivations: filterRows, countRows, groupCount (use args.field), totals, byCategory, withTotalRow, sortByAmount. Derived keys are read-only and derivations must be acyclic. Prefer generic records, columns, fields, actions, and registered functions; never invent domain-specific components.`;
 
 const defaultSchema = {
   id: "root",
   scope: "app",
-  declares: ["rows", "query", "visible", "sums", "series"],
+  declares: ["rows", "command", "query", "visible", "summary", "series"],
   children: [
-    { id: "src", component: "source" },
-    { id: "f1", component: "filter", props: { title: "Filter" } },
+    { id: "src", component: "collection", bind: { rows: "rows", command: "command" }, props: { label: "tasks", persistKey: "schema-runtime-demo-tasks", data: [{ id: "task-1", description: "Try a generated interface", priority: "high", completed: false }] } },
+    { id: "add", component: "form", bind: { command: "command" }, props: { submitLabel: "Add task", fields: [{ name: "description", label: "Task", required: true }, { name: "priority", label: "Priority", type: "select", options: ["high", "medium", "low"] }] } },
+    { id: "f1", component: "filter", bind: { query: "query" }, props: { title: "Find tasks", fields: ["description"] } },
     { id: "d-visible", derive: "visible", fn: "filterRows", from: { rows: "rows", query: "query" } },
-    { id: "d-sums", derive: "sums", fn: "totals", from: { rows: "visible" } },
-    { id: "d-cats", derive: "series", fn: "byCategory", from: { rows: "visible" } },
-    { id: "s1", component: "stat", bind: { totals: "sums" }, props: { title: "Totals" } },
-    { id: "c1", component: "chart", bind: { series: "series" }, props: { title: "Spend by category" } },
-    { id: "t1", component: "table", bind: { rows: "visible" }, props: { title: "Transactions" } }
+    { id: "d-summary", derive: "summary", fn: "countRows", from: { rows: "visible" } },
+    { id: "d-series", derive: "series", fn: "groupCount", from: { rows: "visible" }, args: { field: "priority" } },
+    { id: "s1", component: "stat", bind: { totals: "summary" }, props: { title: "Tasks", metrics: [{ field: "count", label: "Visible" }] } },
+    { id: "c1", component: "chart", bind: { series: "series" }, props: { title: "Tasks by priority" } },
+    { id: "t1", component: "actionTable", bind: { rows: "visible", command: "command" }, props: { title: "Todo list", columns: [{ field: "completed", label: "Done", type: "checkbox" }, { field: "description", label: "Task" }, { field: "priority", label: "Priority" }], actions: [{ label: "Delete", operation: "remove" }] } }
   ]
 };
 
@@ -45,7 +48,7 @@ function createServer() {
 
   registerAppTool(server, "open_schema_runtime", {
     title: "Open Schema Runtime",
-    description: "Open the Schema Runtime app with its default transaction dashboard.",
+    description: "Open Schema Runtime with a generic stateful collection example.",
     inputSchema: {},
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     _meta: { ui: { resourceUri: WIDGET_URI } }

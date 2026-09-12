@@ -19,6 +19,20 @@ Example:
 
 Both tools are read-only from ChatGPT's perspective; the rendered UI is generated inside the conversation.
 
+## Generic runtime primitives
+
+The runtime is domain-neutral. Schemas compose generic records and behavior rather than choosing domain-specific widgets:
+
+- `source` supplies immutable record fixtures.
+- `collection` owns a mutable record array, accepts generic commands, and can persist it locally.
+- `form` emits append commands from schema-defined fields.
+- `filter` searches schema-selected record fields.
+- `table` and `actionTable` render schema-defined columns; `actionTable` emits row commands.
+- `stat` and `chart` render generic derived objects and series.
+- `filterRows`, `countRows`, and `groupCount` provide general projections. The original transaction projections remain available.
+
+`collection` understands the generic operations `append`, `remove`, `toggle`, and `set`. Domain concepts such as “task,” “expense,” or “inventory item” belong in schema data, field definitions, and labels—not in component implementations.
+
 ## Local commands
 
 ```bash
