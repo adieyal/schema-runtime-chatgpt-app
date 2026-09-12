@@ -558,7 +558,8 @@ register('filter',{
     const input=document.createElement('input');
     input.type='text'; input.placeholder=c.props.placeholder||'Search records'; input.value=q.text||'';
     const chips=document.createElement('div'); chips.className='chips';
-    const vals=[null,...(c.props.options||[])];
+    const options=c.props.options??(c.props.fields?.length?[]:CATS);
+    const vals=[null,...options];
     const paint=()=>[...chips.children].forEach((b,i)=>b.setAttribute('aria-pressed',String(q.category===vals[i])));
     vals.forEach(v=>{
       const b=document.createElement('button');
@@ -567,7 +568,7 @@ register('filter',{
       chips.appendChild(b);
     });
     input.oninput=()=>{ q={...q,text:input.value}; c.write('query',q); };
-    c.el.append(input); if(c.props.options?.length) c.el.append(chips); paint();
+    c.el.append(input); if(options.length) c.el.append(chips); paint();
     c.seed('query',q);
   }
 });
