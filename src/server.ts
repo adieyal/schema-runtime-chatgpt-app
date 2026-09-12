@@ -52,12 +52,22 @@ const defaultSchema = {
   ]
 };
 
+type RenderSchemaArgs = {
+  schema: Record<string, unknown>;
+  request?: string;
+};
+
 function createServer() {
   const server = new McpServer({ name: "schema-runtime", version: "0.1.0" });
 
-  registerAppResource(server, "Schema Runtime widget", WIDGET_URI,
-    { mimeType: RESOURCE_MIME_TYPE, description: "Interactive deterministic schema runtime" },
-    async () => ({ contents: [{ uri: WIDGET_URI, mimeType: RESOURCE_MIME_TYPE, text: widgetHtml }] })
+  registerAppResource(
+    server,
+    "Schema Runtime widget",
+    WIDGET_URI,
+    { description: "Interactive deterministic schema runtime" },
+    async () => ({
+      contents: [{ uri: WIDGET_URI, mimeType: RESOURCE_MIME_TYPE, text: widgetHtml }]
+    })
   );
 
   registerAppTool(server, "open_schema_runtime", {
@@ -75,15 +85,18 @@ function createServer() {
     title: "Render Schema Runtime UI",
     description: `Render a UI in the Schema Runtime. Use this whenever the user asks to build, change, compose, generate, or render a UI with Schema Runtime. You must author the schema yourself and pass it in the schema argument. ${CONTRACT}`,
     inputSchema: {
-      schema: z.record(z.string(), z.any()).describe("A complete Schema Runtime root schema object satisfying the contract in this tool description."),
+      schema: z.record(z.string(), z.unknown()).describe("A complete Schema Runtime root schema object satisfying the contract in this tool description."),
       request: z.string().optional().describe("Short description of what the user asked for")
     },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     _meta: { ui: { resourceUri: WIDGET_URI } }
-  }, async ({ schema, request }) => ({
-    content: [{ type: "text" as const, text: `Rendered the requested Schema Runtime UI${request ? `: ${request}` : "."}` }],
-    structuredContent: { schema, request: request ?? "custom" }
-  }));
+  }, async (args: RenderSchemaArgs) => {
+    const { schema, request } = args;
+    return {
+      content: [{ type: "text" as const, text: `Rendered the requested Schema Runtime UI${request ? `: ${request}` : "."}` }],
+      structuredContent: { schema, request: request ?? "custom" }
+    };
+  });
 
   return server;
 }
